@@ -29,6 +29,7 @@ class GarminClient:
         if self.auth_domain and str(self.auth_domain).upper() == "CN":
           self.garthClient.configure(domain="garmin.cn")
         self.garthClient.login(self.email, self.password)
+        print(f"[LOG] Login Garmin succeeded: {self.garthClient.username}")
         
         # del self.garthClient.sess.headers['User-Agent']
         del self.garthClient.client.sess.headers['User-Agent']
