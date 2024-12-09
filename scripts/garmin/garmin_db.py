@@ -18,6 +18,7 @@ class GarminDB:
 
      ## 保存Stryd运动信息
     def saveActivity(self, id):
+        print(f"[LOG] Save Garmin activity: id = {id}")
         exists_select_sql = 'SELECT * FROM garmin_activity WHERE activity_id = ?'
         with SqliteDB(self._garmin_db_name) as db:
             exists_query_set = db.execute(exists_select_sql, (id,)).fetchall()
