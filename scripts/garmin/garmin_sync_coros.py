@@ -73,7 +73,7 @@ if __name__ == "__main__":
       exit()
       
   print(f"[LOG] Coros {len(un_sync_id_list)} items to sync. Start syncing.")
-  for idx, un_sync_id in (un_sync_id_list):
+  for idx, un_sync_id in enumerate(un_sync_id_list):
     try:
       print(f"[LOG] Coros sync item {idx}. Id ={un_sync_id}.")
       file = garminClient.downloadFitActivity(un_sync_id)
