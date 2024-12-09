@@ -83,8 +83,9 @@ if __name__ == "__main__":
       client = AliOssClient()
       oss_obj = client.multipart_upload(file_path, f"{un_sync_id}.zip")
       upload_result = corosClient.uploadActivity(oss_obj)
+        
+      print(f"[LOG] Coros upload result == {upload_result}")
       if upload_result == '0000':
-          print(f"[LOG] Coros upload_result == '0000'")
           garmin_db.updateSyncStatus(un_sync_id)
     except Exception as err:
       print(err)
