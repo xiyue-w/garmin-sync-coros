@@ -60,7 +60,7 @@ if __name__ == "__main__":
   all_activities = garminClient.getAllActivities()
   if all_activities == None or len(all_activities) == 0:
       exit()
-  for activity in all_activities:
+  for idx, activity in enumerate(all_activities):
       activity_id = activity["activityId"]
       garmin_db.saveActivity(activity_id)
       print(f"[LOG] Garmin saved activity item {idx+1}: id = {activity_id}")
@@ -73,7 +73,7 @@ if __name__ == "__main__":
       exit()
       
   print(f"[LOG] Coros {len(un_sync_id_list)} items to sync. Start syncing.")
-  for un_sync_id in un_sync_id_list:
+  for idx, un_sync_id in (un_sync_id_list):
     try:
       print(f"[LOG] Coros sync item {idx}. Id ={un_sync_id}.")
       file = garminClient.downloadFitActivity(un_sync_id)
