@@ -75,6 +75,9 @@ class CorosClient:
               headers=headers
           )
           upload_response = json.loads(response.data)
+          print("upload_response")
+          print(upload_response)
+          
           upload_result = upload_response["result"]
           return upload_result
         except Exception as err:
