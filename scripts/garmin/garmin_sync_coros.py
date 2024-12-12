@@ -60,11 +60,12 @@ if __name__ == "__main__":
   all_activities = garminClient.getAllActivities()
   if all_activities == None or len(all_activities) == 0:
       exit()
+  garmin_count = 0
   for idx, activity in enumerate(all_activities):
       activity_id = activity["activityId"]
       garmin_db.saveActivity(activity_id)
-      print(f"[LOG] Garmin saved activity item {idx+1}: id = {activity_id}")
-  print(f"[LOG] Garmin saved all activities.")
+      garmin_count = idx
+  print(f"[LOG] Garmin saved all {garmin_count} activities.")
 
   
   un_sync_id_list = garmin_db.getUnSyncActivity()
