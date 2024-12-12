@@ -55,19 +55,27 @@ if __name__ == "__main__":
   COROS_EMAIL = SYNC_CONFIG["COROS_EMAIL"]
   COROS_PASSWORD = SYNC_CONFIG["COROS_PASSWORD"]
   corosClient = CorosClient(COROS_EMAIL, COROS_PASSWORD)
+
+  print(f"[LOG] Garmin start to save all activities.")
   all_activities = garminClient.getAllActivities()
   if all_activities == None or len(all_activities) == 0:
       exit()
-  for activity in all_activities:
+  for idx, activity in enumerate(all_activities):
       activity_id = activity["activityId"]
       garmin_db.saveActivity(activity_id)
+      print(f"[LOG] Garmin saved activity item {idx+1}: id = {activity_id}")
+  print(f"[LOG] Garmin saved all activities.")
 
   
   un_sync_id_list = garmin_db.getUnSyncActivity()
   if un_sync_id_list == None or len(un_sync_id_list) == 0:
+      print(f"[LOG] Coros nothing to sync")
       exit()
-  for un_sync_id in un_sync_id_list:
+
+  print(f"[LOG] Coros {len(un_sync_id_list)} items to sync. Start syncing.")
+  for idx, un_sync_id in enumerate(un_sync_id_list):
     try:
+      print(f"[LOG] Coros sync item {idx}. Id ={un_sync_id}.")
       file = garminClient.downloadFitActivity(un_sync_id)
       file_path = os.path.join(GARMIN_FIT_DIR, f"{un_sync_id}.zip")
       with open(file_path, "wb") as fb:
