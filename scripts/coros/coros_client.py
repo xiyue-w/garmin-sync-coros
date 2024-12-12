@@ -64,7 +64,7 @@ class CorosClient:
      
         try:
 
-          data = {"source":1,"timezone":32,"bucket":"coros-oss","md5":f"{md5}","size":0,"object":f"{oss_object}","serviceName":"aliyun","oriFileName":"a.xx"}
+          data = {"source":1,"timezone":32,"bucket":"coros-oss","md5":f"{md5}","size":0,"object":f"{oss_object}","serviceName":"aliyun","oriFileName":f"{fileName}"}
           
           json_data = json.dumps(data)
           json_str = str(json_data)
