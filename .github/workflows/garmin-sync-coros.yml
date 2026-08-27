@@ -3,7 +3,7 @@ name: garmin-sync-coros
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 1,8,21 * * ?'
+    - cron: '0 2,10,14 * * *' # 每天 UTC 2点、10点、14点执行, JST时间为每天 10点、18点、22点执行
 env:
   GITHUB_NAME: xiyue-w
   GITHUB_EMAIL: wxy320101@gmail.com
