@@ -1,6 +1,7 @@
 import os
 import sys
 from datetime import datetime
+import time
 
 CURRENT_DIR = os.path.split(os.path.abspath(__file__))[0]  # 当前目录
 config_path = CURRENT_DIR.rsplit('/', 1)[0]  # 上三级目录
@@ -32,6 +33,16 @@ def init(coros_db):
     if not os.path.exists(GARMIN_FIT_DIR):
         os.mkdir(GARMIN_FIT_DIR)
 
+def safe_get_all(client, retries=5):
+    for i in range(retries):
+        try:
+            return client.getAllActivities()
+        except Exception as e:
+            wait = min(60, 2 ** i)
+            print(f"getAllActivities failed ({e}), retrying in {wait}s...")
+            time.sleep(wait)
+    raise RuntimeError("Failed to fetch activities after retries.")
+
 if __name__ == "__main__":
 
    # 首先读取 面板变量 或者 github action 运行变量
@@ -58,7 +69,7 @@ if __name__ == "__main__":
   COROS_PASSWORD = SYNC_CONFIG["COROS_PASSWORD"]
   corosClient = CorosClient(COROS_EMAIL, COROS_PASSWORD)
   corosClient.login()
-  all_activities = garminClient.getAllActivities()
+  all_activities = safe_get_all(garminClient)
 
   # set SYNC_AFTER_DATE to a specific date in the format "YYYY-MM-DD" to filter activities after that date
   # SYNC_AFTER_DATE = os.getenv("SYNC_AFTER_DATE")
@@ -81,7 +92,7 @@ if __name__ == "__main__":
                 act_dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S")
             if act_dt < cutoff:
                 continue
-    #   print(f"Processing activity ID: {activity_id}, Date: {act_dt if cutoff else 'N/A'}\n")
+      print(f"Processing activity ID: {activity_id}, Date: {act_dt if cutoff else 'N/A'}\n")
       garmin_db.saveActivity(activity_id)
 
   un_sync_id_list = garmin_db.getUnSyncActivity()

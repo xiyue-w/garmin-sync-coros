@@ -17,6 +17,8 @@ env:
   COROS_EMAIL: ${{ secrets.COROS_EMAIL }}
   COROS_PASSWORD: ${{ secrets.COROS_PASSWORD }}
 
+  RUN_SYNC_IN_CI: '1'        # required to allow CI run
+
 jobs:
   build:
     runs-on: ubuntu-latest
