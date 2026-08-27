@@ -1,5 +1,6 @@
 import os
-import sys 
+import sys
+from datetime import datetime
 
 CURRENT_DIR = os.path.split(os.path.abspath(__file__))[0]  # 当前目录
 config_path = CURRENT_DIR.rsplit('/', 1)[0]  # 上三级目录
@@ -21,7 +22,6 @@ SYNC_CONFIG = {
     "COROS_EMAIL": '',
     "COROS_PASSWORD": '',
 }
-
 
 def init(coros_db):
     ## 判断RQ数据库是否存在
@@ -59,13 +59,30 @@ if __name__ == "__main__":
   corosClient = CorosClient(COROS_EMAIL, COROS_PASSWORD)
   corosClient.login()
   all_activities = garminClient.getAllActivities()
+
+  # set SYNC_AFTER_DATE to a specific date in the format "YYYY-MM-DD" to filter activities after that date
+  # SYNC_AFTER_DATE = os.getenv("SYNC_AFTER_DATE")
+  SYNC_AFTER_DATE="2026-03-28"
+  cutoff = datetime.fromisoformat(SYNC_AFTER_DATE) if SYNC_AFTER_DATE else None
+
   if all_activities == None or len(all_activities) == 0:
       exit()
   for activity in all_activities:
       activity_id = activity["activityId"]
+      if cutoff:
+        # common Garmin keys: "startTimeLocal" or "startTimeGMT" — adjust if different
+        # dt_str = activity.get("startTimeLocal") or activity.get("startTimeGMT") or activity.get("startTime")
+        dt_str = activity.get("startTimeLocal")
+        if dt_str:
+            try:
+                act_dt = datetime.fromisoformat(dt_str.replace(" ", "T"))
+            except Exception:
+                # fallback: try a common format, adjust as needed
+                act_dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S")
+            if act_dt < cutoff:
+                continue
+    #   print(f"Processing activity ID: {activity_id}, Date: {act_dt if cutoff else 'N/A'}\n")
       garmin_db.saveActivity(activity_id)
-
-  
 
   un_sync_id_list = garmin_db.getUnSyncActivity()
   if un_sync_id_list == None or len(un_sync_id_list) == 0:
@@ -102,6 +119,7 @@ if __name__ == "__main__":
       oss_obj = client.multipart_upload(file_path,  f"{corosClient.userId}/{calculate_md5_file(file_path)}.zip")
       size = os.path.getsize(file_path)
       upload_result = corosClient.uploadActivity(f"fit_zip/{corosClient.userId}/{calculate_md5_file(file_path)}.zip", calculate_md5_file(file_path), f"{un_sync_id}.zip", size)
+      print(f"upload_result: {upload_result}\n")
       if upload_result:
           garmin_db.updateSyncStatus(un_sync_id)
     except Exception as err:
