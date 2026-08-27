@@ -11,10 +11,13 @@ env:
   GARMIN_AUTH_DOMAIN: ${{ secrets.GARMIN_AUTH_DOMAIN }}
   GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
   GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+  GARTH_OAUTH1_TOKEN_JSON: ${{ secrets.GARTH_OAUTH1_TOKEN_JSON }}
+  GARTH_OAUTH2_TOKEN_JSON: ${{ secrets.GARTH_OAUTH2_TOKEN_JSON }}
 
   ## Coros配置
   COROS_EMAIL: ${{ secrets.COROS_EMAIL }}
   COROS_PASSWORD: ${{ secrets.COROS_PASSWORD }}
+  ENABLE_LOGFIRE: '0'
   ### 按需选择，如果选择 garmin_to_coros 佳明同步高驰
   ### 如果选择 coros_to_garmin 高驰同步佳明
   RUN_TYPE: coros_to_garmin # garmin_to_coros 佳明同步高驰、 coros_to_garmin
@@ -36,6 +39,7 @@ jobs:
           echo "::set-output name=PY::$(python -c 'import hashlib, sys;print(hashlib.sha256(sys.version.encode()+sys.executable.encode()).hexdigest())')"
           echo "::set-output name=PIP_CACHE::$(pip cache dir)"
       - name: Cache PIP
+        id: pip-cache
         uses: actions/cache@v3
         with:
           path: ${{ steps.set_variables.outputs.PIP_CACHE }}

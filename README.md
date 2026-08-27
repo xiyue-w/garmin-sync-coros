@@ -18,6 +18,22 @@
 |    COROS_EMAIL     |           高驰 登录邮箱            |                    |
 |   COROS_PASSWORD   |             高驰 密码              |                    |
 
+## Garmin 登录限流说明
+Garmin 现在会更频繁地限制账号密码直登，`garth` 也已经不再维护。
+如果本地能跑、Github Actions 里出现 `429` 或 `"Garmin is not logging in or the token has expired."`，请优先把本地可用的 `garth` 会话同步到仓库密钥中：
+
+|            参数名            |                             备注                              |
+| :--------------------------: | :-----------------------------------------------------------: |
+| `GARTH_OAUTH1_TOKEN_JSON` | 本地 `~/.garth/oauth1_token.json` 文件的完整内容 |
+| `GARTH_OAUTH2_TOKEN_JSON` | 本地 `~/.garth/oauth2_token.json` 文件的完整内容 |
+
+脚本会优先使用这两个密钥恢复 Garmin 会话；只有在没有可用会话时才回退到账号密码登录。
+运行日志会明确显示使用的是 `env-seeded`、`on-disk`、`in-memory` 还是 `fresh-login` Garmin 会话。
+
+## Logfire 开关
+默认会关闭 `logfire` 遥测输出，避免出现 `Failed to export span batch code: 401` 这类与同步无关的噪音日志。
+如需重新开启，可在本地或 Github Actions 环境变量中设置 `ENABLE_LOGFIRE=1`。
+
 ## Github配置步骤
 ### 1.参数配置
 打开**Setting**

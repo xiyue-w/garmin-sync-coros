@@ -1,11 +1,26 @@
 import os
 import sys
 from datetime import datetime
+import logging
 import time
+import warnings
 
 CURRENT_DIR = os.path.split(os.path.abspath(__file__))[0]  # 当前目录
 config_path = CURRENT_DIR.rsplit('/', 1)[0]  # 上三级目录
 sys.path.append(config_path)
+
+def configure_optional_telemetry():
+    enable_logfire = str(os.getenv("ENABLE_LOGFIRE", "0")).lower() in ("1", "true", "yes", "on")
+    if enable_logfire:
+        return
+
+    os.environ.setdefault("OTEL_SDK_DISABLED", "true")
+    os.environ.setdefault("LOGFIRE_IGNORE_NO_CONFIG", "1")
+    warnings.filterwarnings(
+        "ignore",
+        message=r"Logfire API returned status code .*",
+        category=UserWarning,
+    )
 
 from config import DB_DIR, GARMIN_FIT_DIR
 from garmin.garmin_client import GarminClient
@@ -14,6 +29,17 @@ from coros.coros_client import CorosClient
 from oss.ali_oss_client import AliOssClient
 from oss.aws_oss_client import AwsOssClient
 from utils.md5_utils import calculate_md5_file
+
+configure_optional_telemetry()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+if str(os.getenv("ENABLE_LOGFIRE", "0")).lower() not in ("1", "true", "yes", "on"):
+    for logger_name in ("logfire", "opentelemetry", "opentelemetry.sdk"):
+        logging.getLogger(logger_name).setLevel(logging.CRITICAL)
 
 SYNC_CONFIG = {
     'GARMIN_AUTH_DOMAIN': '',
@@ -34,14 +60,18 @@ def init(coros_db):
         os.mkdir(GARMIN_FIT_DIR)
 
 def safe_get_all(client, retries=5):
+    last_error = None
     for i in range(retries):
         try:
             return client.getAllActivities()
         except Exception as e:
+            last_error = e
+            if "refusing to retry immediately" in str(e):
+                break
             wait = min(60, 2 ** i)
             print(f"getAllActivities failed ({e}), retrying in {wait}s...")
             time.sleep(wait)
-    raise RuntimeError("Failed to fetch activities after retries.")
+    raise RuntimeError("Failed to fetch activities after retries.") from last_error
 
 if __name__ == "__main__":
 
@@ -70,6 +100,11 @@ if __name__ == "__main__":
   corosClient = CorosClient(COROS_EMAIL, COROS_PASSWORD)
   corosClient.login()
   all_activities = safe_get_all(garminClient)
+  logging.info(
+      "Garmin auth mode for this run: %s (session dir: %s)",
+      garminClient.session_source or "unknown",
+      garminClient.session_dir,
+  )
 
   # set SYNC_AFTER_DATE to a specific date in the format "YYYY-MM-DD" to filter activities after that date
   # SYNC_AFTER_DATE = os.getenv("SYNC_AFTER_DATE")
@@ -80,6 +115,7 @@ if __name__ == "__main__":
       exit()
   for activity in all_activities:
       activity_id = activity["activityId"]
+      act_dt = None
       if cutoff:
         # common Garmin keys: "startTimeLocal" or "startTimeGMT" — adjust if different
         # dt_str = activity.get("startTimeLocal") or activity.get("startTimeGMT") or activity.get("startTime")
