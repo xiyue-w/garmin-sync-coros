@@ -128,7 +128,7 @@ if __name__ == "__main__":
                 act_dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S")
             if act_dt < cutoff:
                 continue
-      print(f"Processing activity ID: {activity_id}, Date: {act_dt if cutoff else 'N/A'}\n")
+    #   print(f"Processing activity ID: {activity_id}, Date: {act_dt if cutoff else 'N/A'}\n")
       garmin_db.saveActivity(activity_id)
 
   un_sync_id_list = garmin_db.getUnSyncActivity()
