@@ -50,12 +50,30 @@ SYNC_CONFIG = {
     "COROS_PASSWORD": '',
 }
 
+def get_activity_name(activity, garmin_client):
+    activity_name = activity.get("activityName")
+    if activity_name:
+        return activity_name
+
+    try:
+        activity_summary = garmin_client.getActivity(activity["activityId"])
+    except Exception as err:
+        logging.warning(
+            "Failed to load Garmin detail for activity %s metadata: %s",
+            activity["activityId"],
+            err,
+        )
+        return activity_name
+
+    return activity_summary.get("activityName") or activity_name
+
 def init(coros_db):
     ## 判断RQ数据库是否存在
     print(os.path.join(DB_DIR, coros_db.garmin_db_name))
     if not os.path.exists(os.path.join(DB_DIR, coros_db.garmin_db_name)):
         ## 初始化建表
         coros_db.initDB()
+    coros_db.ensureColumns()
     if not os.path.exists(GARMIN_FIT_DIR):
         os.mkdir(GARMIN_FIT_DIR)
 
@@ -115,6 +133,7 @@ if __name__ == "__main__":
       exit()
   for activity in all_activities:
       activity_id = activity["activityId"]
+      activity_name = get_activity_name(activity, garminClient)
       act_dt = None
       if cutoff:
         # common Garmin keys: "startTimeLocal" or "startTimeGMT" — adjust if different
@@ -129,15 +148,16 @@ if __name__ == "__main__":
             if act_dt < cutoff:
                 continue
     #   print(f"Processing activity ID: {activity_id}, Date: {act_dt if cutoff else 'N/A'}\n")
-      garmin_db.saveActivity(activity_id)
+      garmin_db.saveActivity(activity_id, activity_name)
 
   un_sync_id_list = garmin_db.getUnSyncActivity()
   if un_sync_id_list == None or len(un_sync_id_list) == 0:
       exit()
   file_path_list = []
   
-  for un_sync_id in un_sync_id_list:
+  for un_sync in un_sync_id_list:
     try:
+      un_sync_id = un_sync["activity_id"]
       file = garminClient.downloadFitActivity(un_sync_id)
       file_path = os.path.join(GARMIN_FIT_DIR, f"{un_sync_id}.zip")
       with open(file_path, "wb") as fb:
@@ -145,7 +165,8 @@ if __name__ == "__main__":
 
       un_sync_info = {
         "un_sync_id": un_sync_id,
-        "file_path": file_path
+        "file_path": file_path,
+        "activity_name": un_sync.get("activity_name"),
       }
 
       file_path_list.append(un_sync_info)
@@ -163,9 +184,17 @@ if __name__ == "__main__":
 
       file_path = un_sync_info["file_path"]
       un_sync_id = un_sync_info["un_sync_id"]
+      activity_name = un_sync_info.get("activity_name")
+      print("activity_name: ", activity_name)
       oss_obj = client.multipart_upload(file_path,  f"{corosClient.userId}/{calculate_md5_file(file_path)}.zip")
       size = os.path.getsize(file_path)
-      upload_result = corosClient.uploadActivity(f"fit_zip/{corosClient.userId}/{calculate_md5_file(file_path)}.zip", calculate_md5_file(file_path), f"{un_sync_id}.zip", size)
+      upload_result = corosClient.uploadActivity(
+          f"fit_zip/{corosClient.userId}/{calculate_md5_file(file_path)}.zip",
+          calculate_md5_file(file_path),
+          f"{un_sync_id}.zip",
+          size,
+          activity_name=activity_name,
+      )
       print(f"upload_result: {upload_result}\n")
       if upload_result:
           garmin_db.updateSyncStatus(un_sync_id)

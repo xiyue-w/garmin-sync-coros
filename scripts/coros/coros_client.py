@@ -1,12 +1,15 @@
 import urllib3
 import json
 import hashlib
+import logging
 
 import certifi
 
 
 from coros.region_config import REGIONCONFIG
 from coros.sts_config import STS_CONFIG
+
+logger = logging.getLogger(__name__)
 
 class CorosClient:
     
@@ -55,7 +58,38 @@ class CorosClient:
         self.teamapi = REGIONCONFIG[self.regionId]['teamapi']
 
     ## 上传运动
-    def uploadActivity(self, oss_object, md5, fileName, size):
+    def _build_upload_payload(self, oss_object, md5, fileName, size, activity_name=None):
+        bucket = STS_CONFIG[self.regionId]["bucket"]
+        serviceName = STS_CONFIG[self.regionId]["service"]
+        data = {
+            "source": 1,
+            "timezone": 32,
+            "bucket": f"{bucket}",
+            "md5": f"{md5}",
+            "size": size,
+            "object": f"{oss_object}",
+            "serviceName": f"{serviceName}",
+            "oriFileName": f"{fileName}",
+        }
+        if activity_name:
+            data["name"] = activity_name[:200]
+        return data
+
+    def _request_activity_upload(self, upload_url, headers, data):
+        json_data = json.dumps(data)
+        json_str = str(json_data)
+        print(json_str)
+        response = self.req.request(
+            method='POST',
+            url=upload_url,
+            fields={"jsonParameter": json_str},
+            headers=headers
+        )
+        upload_response = json.loads(response.data)
+        print(upload_response)
+        return upload_response
+
+    def uploadActivity(self, oss_object, md5, fileName, size, activity_name=None):
         ## 判断Token 是否为空
         if self.accessToken == None:
             self.login()
@@ -68,21 +102,19 @@ class CorosClient:
         }
      
         try:
-          bucket = STS_CONFIG[self.regionId]["bucket"]
-          serviceName = STS_CONFIG[self.regionId]["service"]
-          data = {"source":1,"timezone":32,"bucket":f"{bucket}","md5":f"{md5}","size":size,"object":f"{oss_object}","serviceName":f"{serviceName}","oriFileName":f"{fileName}"}
-          json_data = json.dumps(data)
-          json_str = str(json_data)
-          print(json_str)
-          response = self.req.request(
-              method = 'POST',
-              url=upload_url,
-              fields={ "jsonParameter": json_str},
-              headers=headers
+          data = self._build_upload_payload(
+              oss_object,
+              md5,
+              fileName,
+              size,
+              activity_name=activity_name,
           )
-          upload_response = json.loads(response.data)
-          print(upload_response)
-          if upload_response["data"].get("status") == 2 and  upload_response["result"] == "0000":
+          upload_response = self._request_activity_upload(upload_url, headers, data)
+          if upload_response.get("result") != "0000" and activity_name:
+             logger.warning("COROS rejected activity name, retrying upload without name.")
+             fallback_data = self._build_upload_payload(oss_object, md5, fileName, size)
+             upload_response = self._request_activity_upload(upload_url, headers, fallback_data)
+          if upload_response.get("data", {}).get("status") == 2 and  upload_response["result"] == "0000":
              return True
           else:
              return False
@@ -106,6 +138,30 @@ class CorosClient:
           return response
         except Exception as err:
             exit() 
+
+    def getActivityDetail(self, label_id, sport_type):
+        self.checkToken()
+        activity_detail_url = f"{self.teamapi}/activity/detail/query"
+        headers = {
+          "Accept":       "application/json, text/plain, */*",
+          "accesstoken": self.accessToken,
+          "Content-Type": "application/json;charset=UTF-8",
+        }
+        data = {
+            "labelId": label_id,
+            "sportType": sport_type,
+        }
+        try:
+          response = self.req.request(
+              method='POST',
+              url=activity_detail_url,
+              body=json.dumps(data),
+              headers=headers
+          )
+          return json.loads(response.data)
+        except Exception as err:
+            exit()
+
      ## 获取所有运动
     def getAllActivities(self): 
       all_activities = []

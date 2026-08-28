@@ -14,26 +14,62 @@ class GarminDB:
         return self._garmin_db_name
 
      ## 保存Stryd运动信息
-    def saveActivity(self, id):
+    def ensureColumns(self):
+        required_columns = {
+            "activity_name": "TEXT",
+        }
+        with SqliteDB(self._garmin_db_name) as db:
+            table_info = db.execute("PRAGMA table_info(garmin_activity)").fetchall()
+            existing_columns = {column[1] for column in table_info}
+            for column_name, column_type in required_columns.items():
+                if column_name not in existing_columns:
+                    db.execute(
+                        f"ALTER TABLE garmin_activity ADD COLUMN {column_name} {column_type}"
+                    )
+
+     ## 保存Stryd运动信息
+    def saveActivity(self, id, activity_name=None):
         exists_select_sql = 'SELECT * FROM garmin_activity WHERE activity_id = ?'
         with SqliteDB(self._garmin_db_name) as db:
             exists_query_set = db.execute(exists_select_sql, (id,)).fetchall()
             query_size = len(exists_query_set)
             if query_size == 0:
-              db.execute('insert into garmin_activity (activity_id) values (?)', (id,)) 
+              db.execute(
+                  'insert into garmin_activity (activity_id, activity_name) values (?,?)',
+                  (id, activity_name),
+              )
+            else:
+              db.execute(
+                  '''
+                  update garmin_activity
+                  set activity_name = COALESCE(?, activity_name)
+                  WHERE activity_id = ?
+                  ''',
+                  (activity_name, id),
+              )
     
     def getUnSyncActivity(self):
-        select_un_upload_sql = 'SELECT activity_id FROM garmin_activity WHERE is_sync_coros = 0 limit 1000'
+        select_un_upload_sql = '''
+            SELECT activity_id, activity_name
+            FROM garmin_activity
+            WHERE is_sync_coros = 0
+            limit 1000
+        '''
         with SqliteDB(self._garmin_db_name) as db:
             un_upload_result = db.execute(select_un_upload_sql).fetchall()
             query_size = len(un_upload_result)
             if query_size == 0:
                 return None
             else:
-                activity_id_list = []
+                activity_list = []
                 for result in un_upload_result:
-                    activity_id_list.append(result[0])
-                return activity_id_list
+                    activity_list.append(
+                        {
+                            "activity_id": result[0],
+                            "activity_name": result[1],
+                        }
+                    )
+                return activity_list
             
     def updateSyncStatus(self, activity_id:int):
         update_sql = "update garmin_activity set is_sync_coros = 1 WHERE activity_id = ?"
@@ -52,6 +88,7 @@ class GarminDB:
           CREATE TABLE garmin_activity(
               id INTEGER NOT NULL PRIMARY KEY  AUTOINCREMENT ,
               activity_id INTEGER NOT NULL  , 
+              activity_name TEXT,
               is_sync_coros INTEGER NOT NULL  DEFAULT 0,
               create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
               update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
