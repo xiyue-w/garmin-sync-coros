@@ -22,7 +22,7 @@ def configure_optional_telemetry():
         category=UserWarning,
     )
 
-from config import DB_DIR, GARMIN_FIT_DIR
+from config import DB_DIR, GARMIN_FIT_DIR, resolve_sync_config
 from garmin.garmin_client import GarminClient
 from garmin.garmin_db import GarminDB
 from coros.coros_client import CorosClient
@@ -93,11 +93,7 @@ def safe_get_all(client, retries=5):
 
 if __name__ == "__main__":
 
-   # 首先读取 面板变量 或者 github action 运行变量
-  for k in SYNC_CONFIG:
-      if os.getenv(k):
-          v = os.getenv(k)
-          SYNC_CONFIG[k] = v
+  SYNC_CONFIG = resolve_sync_config(SYNC_CONFIG)
   
   ## db 名称
   db_name = "garmin.db"

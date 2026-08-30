@@ -34,3 +34,4 @@ config.yaml
 /garmin-fit
 /coros-fit
 /db/.garth/
+/config

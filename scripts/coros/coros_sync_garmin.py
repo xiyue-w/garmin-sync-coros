@@ -6,7 +6,7 @@ config_path = CURRENT_DIR.rsplit('/', 1)[0]  # 上三级目录
 sys.path.append(config_path)
 
 from coros_client import CorosClient
-from config  import DB_DIR, COROS_FIT_DIR
+from config  import DB_DIR, COROS_FIT_DIR, resolve_sync_config
 from coros_db import CorosDB
 from garmin.garmin_client import GarminClient
 
@@ -31,11 +31,7 @@ def init(coros_db):
 
 
 if __name__ == "__main__":
-  # 首先读取 面板变量 或者 github action 运行变量
-  for k in SYNC_CONFIG:
-      if os.getenv(k):
-          v = os.getenv(k)
-          SYNC_CONFIG[k] = v
+  SYNC_CONFIG = resolve_sync_config(SYNC_CONFIG)
 
   COROS_EMAIL = SYNC_CONFIG["COROS_EMAIL"]
   COROS_PASSWORD = SYNC_CONFIG["COROS_PASSWORD"]
