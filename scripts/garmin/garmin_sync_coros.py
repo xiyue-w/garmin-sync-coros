@@ -147,10 +147,12 @@ if __name__ == "__main__":
     #   print(f"Processing activity ID: {activity_id}, Date: {act_dt if cutoff else 'N/A'}\n")
       garmin_db.saveActivity(activity_id, activity_name)
 
-  un_sync_id_list = garmin_db.getUnSyncActivity()
+  retry_failed = str(os.getenv("RETRY_FAILED", "1")).lower() in ("1", "true", "yes", "on")
+  un_sync_id_list = garmin_db.getUnSyncActivity(include_failed=retry_failed)
   print(f"Un-synced activities count: {len(un_sync_id_list)}")
   print(f"Un-synced activities: {un_sync_id_list}")
-  if un_sync_id_list == None or len(un_sync_id_list) == 0:
+  if not un_sync_id_list:
+      logging.info("No activities to upload (retry failed: %s).", retry_failed)
       exit()
   file_path_list = []
   

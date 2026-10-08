@@ -48,18 +48,18 @@ class GarminDB:
                   (activity_name, id),
               )
     
-    def getUnSyncActivity(self):
+    def getUnSyncActivity(self, include_failed=False):
         select_un_upload_sql = '''
             SELECT activity_id, activity_name
             FROM garmin_activity
-            WHERE is_sync_coros = 0
+            WHERE is_sync_coros = 0 OR (? = 1 AND is_sync_coros = 2)
             limit 1000
         '''
         with SqliteDB(self._garmin_db_name) as db:
-            un_upload_result = db.execute(select_un_upload_sql).fetchall()
+            un_upload_result = db.execute(select_un_upload_sql, (int(include_failed),)).fetchall()
             query_size = len(un_upload_result)
             if query_size == 0:
-                return None
+                return []
             else:
                 activity_list = []
                 for result in un_upload_result:
