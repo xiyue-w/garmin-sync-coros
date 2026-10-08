@@ -69,7 +69,8 @@ def get_activity_name(activity, garmin_client):
 
 def init(coros_db):
     ## 判断RQ数据库是否存在
-    print(os.path.join(DB_DIR, coros_db.garmin_db_name))
+    # print("init coros dp path")
+    # print(os.path.join(DB_DIR, coros_db.garmin_db_name))
     if not os.path.exists(os.path.join(DB_DIR, coros_db.garmin_db_name)):
         ## 初始化建表
         coros_db.initDB()
@@ -147,6 +148,8 @@ if __name__ == "__main__":
       garmin_db.saveActivity(activity_id, activity_name)
 
   un_sync_id_list = garmin_db.getUnSyncActivity()
+  print(f"Un-synced activities count: {len(un_sync_id_list)}")
+  print(f"Un-synced activities: {un_sync_id_list}")
   if un_sync_id_list == None or len(un_sync_id_list) == 0:
       exit()
   file_path_list = []
@@ -166,10 +169,12 @@ if __name__ == "__main__":
       }
 
       file_path_list.append(un_sync_info)
+    #   print("Un-synced activity downloaded: ", un_sync_info)
       
     except Exception as err:
       print(err)
   for un_sync_info in file_path_list:
+    un_sync_id = un_sync_info["un_sync_id"]
     try:
       client = None
       ## 中国区使用阿里云OSS
@@ -195,6 +200,6 @@ if __name__ == "__main__":
       if upload_result:
           garmin_db.updateSyncStatus(un_sync_id)
     except Exception as err:
-      print(err)
+      logging.exception("Failed to upload activity %s", un_sync_id)
       garmin_db.updateExceptionSyncStatus(un_sync_id)
-      exit()
+      sys.exit(1)

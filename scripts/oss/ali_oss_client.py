@@ -7,6 +7,7 @@ import certifi
 from oss2 import SizedFileAdapter, determine_part_size
 from oss2.models import PartInfo
 from utils.coros_oss_credients_utils import decode
+from utils.http_json import parse_json_response
 
 
 class AliOssClient:
@@ -28,11 +29,14 @@ class AliOssClient:
 
         response = self.req.request('GET', sts_token_url)
 
-        sts_token_response = json.loads(response.data)
+        sts_token_response = parse_json_response(response, "COROS Aliyun storage credentials (faq.coros.com/openapi/oss/sts)")
         if sts_token_response["code"] != 200:
             raise StsTokenError("获取阿里云OSS STS Token异常")
         credentials = sts_token_response["data"]["credentials"]
-        credients_json = decode(credentials)
+        try:
+            credients_json = decode(credentials)
+        except (ValueError, UnicodeDecodeError) as err:
+            raise StsTokenError("COROS Aliyun storage credentials could not be decoded as JSON") from err
 
 
         SecurityToken = credients_json["SecurityToken"]

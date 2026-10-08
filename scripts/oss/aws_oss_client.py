@@ -8,6 +8,7 @@ from boto3.s3.transfer import TransferConfig
 
 from oss.sts_token_error import StsTokenError
 from utils.coros_oss_credients_utils import decode
+from utils.http_json import parse_json_response
 
 class AwsOssClient:
   def __init__(self, bucket="eu-coros", service="aws", app_id="1660188068672619112", sign="877571111A1EE5316E4B590103D4B5B3", v=2):
@@ -28,7 +29,7 @@ class AwsOssClient:
 
         response = self.req.request('GET', sts_token_url)
 
-        sts_token_response = json.loads(response.data)
+        sts_token_response = parse_json_response(response, "COROS AWS storage credentials (faq.coros.com/openapi/oss/sts)")
         if sts_token_response["code"] != 200:
             raise StsTokenError("Get AWS OSS STS Token Exception")
 
@@ -36,7 +37,10 @@ class AwsOssClient:
         v = sts_token_response["data"]["v"]
         self.credentials = credentials
         self.v = v
-        credients_json = decode(credentials)
+        try:
+            credients_json = decode(credentials)
+        except (ValueError, UnicodeDecodeError) as err:
+            raise StsTokenError("COROS AWS storage credentials could not be decoded as JSON") from err
         self.client = boto3.client(
             "s3",
             aws_access_key_id=credients_json["AccessKeyId"],
@@ -65,6 +69,5 @@ class AwsOssClient:
           print(f"File {fileName} uploaded successfully!")
       except Exception as e:
           print(f"Upload failed: {e}")
-
 
 

@@ -8,6 +8,7 @@ import certifi
 
 from coros.region_config import REGIONCONFIG
 from coros.sts_config import STS_CONFIG
+from utils.http_json import parse_json_response
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +86,7 @@ class CorosClient:
             fields={"jsonParameter": json_str},
             headers=headers
         )
-        upload_response = json.loads(response.data)
+        upload_response = parse_json_response(response, "COROS activity import (/activity/fit/import)")
         print(upload_response)
         return upload_response
 
@@ -119,7 +120,7 @@ class CorosClient:
           else:
              return False
         except Exception as err:
-            exit() 
+            raise CorosActivityUploadError(f"COROS activity import failed: {err}") from err
 
     def getActivities(self, size:int, page:int):
         self.checkToken()
