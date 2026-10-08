@@ -173,13 +173,14 @@ if __name__ == "__main__":
       
     except Exception as err:
       print(err)
+  failed_upload_ids = []
   for un_sync_info in file_path_list:
     un_sync_id = un_sync_info["un_sync_id"]
     try:
       client = None
       ## 中国区使用阿里云OSS
       if corosClient.regionId == 2:
-         client = AliOssClient()
+         client = AliOssClient(access_token=corosClient.accessToken)
       elif corosClient.regionId == 1 or corosClient.regionId == 3:
          client = AwsOssClient()
 
@@ -199,7 +200,14 @@ if __name__ == "__main__":
       print(f"upload_result: {upload_result}\n")
       if upload_result:
           garmin_db.updateSyncStatus(un_sync_id)
+      else:
+          logging.error("COROS did not confirm import of activity %s", un_sync_id)
+          failed_upload_ids.append(un_sync_id)
+          garmin_db.updateExceptionSyncStatus(un_sync_id)
     except Exception as err:
       logging.exception("Failed to upload activity %s", un_sync_id)
+      failed_upload_ids.append(un_sync_id)
       garmin_db.updateExceptionSyncStatus(un_sync_id)
+  if failed_upload_ids:
+      logging.error("Import was not confirmed for activities: %s", failed_upload_ids)
       sys.exit(1)

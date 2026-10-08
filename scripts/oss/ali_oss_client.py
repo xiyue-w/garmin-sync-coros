@@ -3,6 +3,8 @@ import json
 import oss2
 import os
 import certifi
+from urllib.parse import urlencode
+from http.cookies import SimpleCookie
 
 from oss2 import SizedFileAdapter, determine_part_size
 from oss2.models import PartInfo
@@ -11,11 +13,12 @@ from utils.http_json import parse_json_response
 
 
 class AliOssClient:
-    def __init__(self, bucket="coros-oss", service="aliyun", app_id="1660188068672619112", sign="9AD4AA35AAFEE6BB1E847A76848D58DF", v=2):
+    def __init__(self, bucket="coros-oss", service="aliyun", app_id="1660188068672619112", sign="9AD4AA35AAFEE6BB1E847A76848D58DF", v=2, access_token=None):
         self.bucket = bucket
         self.service = service
         self.app_id = app_id
         self.sign = sign
+        self.access_token = access_token
         self.security_token = None
         self.access_key_id = None
         self.access_key_secret = None
@@ -25,11 +28,45 @@ class AliOssClient:
         self.initClient()
 
     def initClient(self):
-        sts_token_url = f"https://faq.coros.com/openapi/oss/sts?bucket={self.bucket}&service={self.service}&app_id={self.app_id}&sign={self.sign}&v={self.v}"
+        if not self.access_token:
+            raise StsTokenError("COROS storage credentials require a logged-in COROS access token")
+        hub_url = "https://trainingcn.coros.com"
+        # The web proxy authenticates cookies and validates a matching CSRF header.
+        session_cookies = SimpleCookie()
+        session_cookies["CPL-coros-token"] = self.access_token
+        session_cookies["CPL-coros-region"] = "2"
+        cookie_header = lambda: "; ".join(
+            morsel.OutputString() for morsel in session_cookies.values()
+        )
+        bootstrap = self.req.request(
+            'GET', f"{hub_url}/admin/views/activities",
+            headers={"Cookie": cookie_header()}, redirect=False,
+        )
+        if not 200 <= bootstrap.status < 400:
+            raise StsTokenError(f"COROS Training Hub session initialization failed: HTTP {bootstrap.status}")
+        for value in bootstrap.headers.getlist("Set-Cookie"):
+            received = SimpleCookie()
+            received.load(value)
+            for key, morsel in received.items():
+                session_cookies[key] = morsel.value
+        if "csrfToken" not in session_cookies:
+            raise StsTokenError("COROS Training Hub did not provide a csrfToken cookie during session initialization")
+        # Match the credential request made by the China Training Hub.
+        sts_token_url = "https://trainingcn.coros.com/api/proxy/oss/sts?" + urlencode(
+            {"bucket": self.bucket, "service": self.service, "v": self.v}
+        )
 
-        response = self.req.request('GET', sts_token_url)
+        response = self.req.request(
+            'GET', sts_token_url,
+            headers={
+                "Accept": "application/json, text/plain, */*",
+                "Cookie": cookie_header(),
+                "x-csrf-token": session_cookies["csrfToken"].value,
+                "Referer": f"{hub_url}/admin/views/activities",
+            },
+        )
 
-        sts_token_response = parse_json_response(response, "COROS Aliyun storage credentials (faq.coros.com/openapi/oss/sts)")
+        sts_token_response = parse_json_response(response, "COROS Aliyun storage credentials (trainingcn.coros.com/api/proxy/oss/sts)")
         if sts_token_response["code"] != 200:
             raise StsTokenError("获取阿里云OSS STS Token异常")
         credentials = sts_token_response["data"]["credentials"]
